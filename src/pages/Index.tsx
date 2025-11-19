@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import Icon from '@/components/ui/icon';
 
 interface Subscription {
@@ -35,7 +37,9 @@ function Index() {
   const [selectedCategory, setSelectedCategory] = useState('Все');
   const [sortBy, setSortBy] = useState('popular');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState<'home' | 'sellers' | 'help' | 'contacts' | 'blog'>('home');
+  const [currentPage, setCurrentPage] = useState<'home' | 'sellers' | 'help' | 'contacts' | 'blog' | 'payment' | 'register' | 'qr-payment'>('home');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
 
   const filteredSubscriptions = subscriptions
     .filter(sub => selectedCategory === 'Все' || sub.category === selectedCategory)
@@ -48,7 +52,223 @@ function Index() {
       return 0;
     });
 
+  const handlePayment = (fullName: string, email: string, amount: number, agreed: boolean) => {
+    if (!agreed) {
+      alert('Пожалуйста, согласитесь с условиями публичной оферты');
+      return;
+    }
+    setCurrentPage('qr-payment');
+  };
+
   const renderContent = () => {
+    if (currentPage === 'payment') {
+      return (
+        <div className="min-h-screen pt-32 px-4 max-w-2xl mx-auto">
+          <div className="text-center mb-12 animate-fade-in">
+            <h1 className="font-heading text-5xl md:text-6xl font-bold mb-6 text-gradient">
+              Оплата подписки
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              {selectedSubscription ? `${selectedSubscription.name} — ${selectedSubscription.price}₽/${selectedSubscription.period}` : 'Заполните данные для оформления подписки'}
+            </p>
+          </div>
+
+          <Card className="bg-card border-border card-glow">
+            <CardContent className="p-8">
+              <form className="space-y-6" onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                handlePayment(
+                  formData.get('fullName') as string,
+                  formData.get('email') as string,
+                  Number(formData.get('amount')),
+                  formData.get('agreed') === 'on'
+                );
+              }}>
+                <div>
+                  <label className="block text-sm font-medium mb-2">ФИО</label>
+                  <Input 
+                    name="fullName"
+                    placeholder="Иванов Иван Иванович" 
+                    className="bg-input border-border"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Электронная почта</label>
+                  <Input 
+                    name="email"
+                    type="email"
+                    placeholder="example@mail.ru" 
+                    className="bg-input border-border"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Сумма оплаты (₽)</label>
+                  <Input 
+                    name="amount"
+                    type="number"
+                    placeholder="1500" 
+                    className="bg-input border-border"
+                    defaultValue={selectedSubscription?.price || ''}
+                    required
+                  />
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Checkbox name="agreed" id="agreed" required className="mt-1" />
+                  <label htmlFor="agreed" className="text-sm text-muted-foreground cursor-pointer">
+                    Я согласен с условиями{' '}
+                    <a href="#" className="text-primary hover:underline">публичной оферты</a>
+                    {' '}и{' '}
+                    <a href="#" className="text-primary hover:underline">политикой конфиденциальности</a>
+                  </label>
+                </div>
+
+                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 h-14 text-lg">
+                  Оплатить
+                </Button>
+
+                <p className="text-xs text-center text-muted-foreground">
+                  После нажатия кнопки будет создан аккаунт и откроется страница оплаты
+                </p>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    if (currentPage === 'qr-payment') {
+      return (
+        <div className="min-h-screen pt-32 px-4 max-w-2xl mx-auto">
+          <div className="text-center mb-12 animate-fade-in">
+            <h1 className="font-heading text-5xl md:text-6xl font-bold mb-6 text-gradient">
+              Оплата по QR-коду
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              Отсканируйте QR-код для оплаты через НСПК
+            </p>
+          </div>
+
+          <Card className="bg-card border-border card-glow">
+            <CardContent className="p-8 text-center">
+              <div className="bg-white p-8 rounded-lg inline-block mb-6">
+                <div className="w-64 h-64 flex items-center justify-center border-4 border-primary/20 rounded-lg">
+                  <div className="text-center">
+                    <Icon name="QrCode" size={200} className="text-primary" />
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="font-heading text-2xl font-bold mb-4">Банк Авангард</h3>
+              <p className="text-muted-foreground mb-6">
+                Откройте приложение вашего банка и отсканируйте QR-код<br />
+                для оплаты через систему НСПК
+              </p>
+
+              <div className="space-y-3 text-left max-w-md mx-auto mb-6">
+                <div className="flex items-center gap-3 text-sm">
+                  <Icon name="CheckCircle" size={20} className="text-primary" />
+                  <span>Безопасная оплата через НСПК</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Icon name="CheckCircle" size={20} className="text-primary" />
+                  <span>Мгновенное зачисление средств</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Icon name="CheckCircle" size={20} className="text-primary" />
+                  <span>Поддержка всех российских банков</span>
+                </div>
+              </div>
+
+              <Button 
+                variant="outline" 
+                onClick={() => setCurrentPage('home')}
+                className="w-full"
+              >
+                Вернуться на главную
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    if (currentPage === 'register') {
+      return (
+        <div className="min-h-screen pt-32 px-4 max-w-md mx-auto">
+          <div className="text-center mb-12 animate-fade-in">
+            <h1 className="font-heading text-5xl md:text-6xl font-bold mb-6 text-gradient">
+              Регистрация
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              Создайте аккаунт в Easy pay
+            </p>
+          </div>
+
+          <Card className="bg-card border-border card-glow">
+            <CardContent className="p-8">
+              <form className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2">ФИО</label>
+                  <Input 
+                    placeholder="Иванов Иван Иванович" 
+                    className="bg-input border-border"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Электронная почта</label>
+                  <Input 
+                    type="email"
+                    placeholder="example@mail.ru" 
+                    className="bg-input border-border"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">Пароль</label>
+                  <Input 
+                    type="password"
+                    placeholder="Минимум 8 символов" 
+                    className="bg-input border-border"
+                    required
+                  />
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Checkbox id="terms" required className="mt-1" />
+                  <label htmlFor="terms" className="text-sm text-muted-foreground cursor-pointer">
+                    Я согласен с{' '}
+                    <a href="#" className="text-primary hover:underline">условиями использования</a>
+                    {' '}и{' '}
+                    <a href="#" className="text-primary hover:underline">политикой конфиденциальности</a>
+                  </label>
+                </div>
+
+                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 h-14 text-lg">
+                  Зарегистрироваться
+                </Button>
+
+                <p className="text-sm text-center text-muted-foreground">
+                  Уже есть аккаунт?{' '}
+                  <button type="button" className="text-primary hover:underline">
+                    Войти
+                  </button>
+                </p>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     if (currentPage === 'sellers') {
       return (
         <div className="min-h-screen pt-32 px-4 max-w-7xl mx-auto">
@@ -314,7 +534,14 @@ function Index() {
                       </div>
                       <div className="text-sm text-muted-foreground">/ {sub.period}</div>
                     </div>
-                    <Button size="sm" className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+                    <Button 
+                      size="sm" 
+                      className="bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                      onClick={() => {
+                        setSelectedSubscription(sub);
+                        setCurrentPage('payment');
+                      }}
+                    >
                       Купить
                     </Button>
                   </div>
@@ -332,7 +559,7 @@ function Index() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
         <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
           <div className="font-heading text-2xl font-bold text-gradient cursor-pointer" onClick={() => setCurrentPage('home')}>
-            SubMarket
+            Easy pay
           </div>
 
           <div className="hidden md:flex items-center gap-6">
@@ -354,11 +581,11 @@ function Index() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={() => setShowAuthModal(true)}>
               <Icon name="User" size={20} />
             </Button>
-            <Button variant="ghost" size="icon">
-              <Icon name="ShoppingCart" size={20} />
+            <Button variant="ghost" className="hidden md:flex" onClick={() => setCurrentPage('payment')}>
+              Оплатить подписку
             </Button>
           </div>
         </div>
@@ -370,9 +597,9 @@ function Index() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <div className="font-heading text-xl font-bold text-gradient mb-4">SubMarket</div>
+              <div className="font-heading text-xl font-bold text-gradient mb-4">Easy pay</div>
               <p className="text-sm text-muted-foreground">
-                Маркетплейс цифровых подписок
+                Платежный сервис для подписок
               </p>
             </div>
             <div>
@@ -404,10 +631,86 @@ function Index() {
             </div>
           </div>
           <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            © 2024 SubMarket. Все права защищены.
+            © 2024 Easy pay. Все права защищены.
           </div>
         </div>
       </footer>
+
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-background/95 backdrop-blur-lg border-t border-border">
+        <div className="grid grid-cols-4 gap-1 p-2">
+          <button 
+            onClick={() => setCurrentPage('home')}
+            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${currentPage === 'home' ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+          >
+            <Icon name="Home" size={20} />
+            <span className="text-xs">Главная</span>
+          </button>
+          <button 
+            onClick={() => setCurrentPage('payment')}
+            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${currentPage === 'payment' ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+          >
+            <Icon name="CreditCard" size={20} />
+            <span className="text-xs">Оплатить</span>
+          </button>
+          <a 
+            href="https://t.me/LuckyLuciano009"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors text-muted-foreground"
+          >
+            <Icon name="MessageCircle" size={20} />
+            <span className="text-xs">Чат</span>
+          </a>
+          <button 
+            onClick={() => setShowAuthModal(true)}
+            className="flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors text-muted-foreground"
+          >
+            <Icon name="User" size={20} />
+            <span className="text-xs">Профиль</span>
+          </button>
+        </div>
+      </div>
+
+      <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl text-center">Вход в аккаунт</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Email</label>
+              <Input 
+                type="email"
+                placeholder="example@mail.ru" 
+                className="bg-input border-border"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Пароль</label>
+              <Input 
+                type="password"
+                placeholder="Введите пароль" 
+                className="bg-input border-border"
+              />
+            </div>
+            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+              Войти
+            </Button>
+            <div className="text-center">
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowAuthModal(false);
+                  setCurrentPage('register');
+                }}
+                className="text-sm text-primary hover:underline"
+              >
+                Создать аккаунт
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
